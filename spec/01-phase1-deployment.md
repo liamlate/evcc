@@ -4,31 +4,34 @@ Milestone: **PV surplus charging works** — a plugged-in car charges automatica
 solar, visible in the evcc UI from both phones.
 
 **Status 2026-07-11:** the SolarEdge SE-MTR grid meter and the battery are installed but
-**not yet electrically connected/commissioned**. Phase 1 therefore runs in two stages:
-**1a** (now) uses the hichi as grid meter and the inverter as PV meter — full PV surplus
-charging, no battery coordination. **1b** (§6, after the installer) switches to the SE meter
-and adds the battery. The hichi's capabilities are the critical path for 1a.
+not yet electrically connected — **installer appointment within ~2 weeks**. Plan:
+- **Now:** prep work only (§1 remaining items, §2 Pi setup, §4a WireGuard, car accounts,
+  demo token) — none of it depends on the meter.
+- **Phase 1a (optional fast-track / fallback):** hichi as grid meter + inverter as PV meter
+  gives PV surplus charging before the installer visit. Verified 2026-07-11: the hichi
+  outputs signed power (negative on export), so this works. Do it if prep finishes early or
+  the appointment slips; otherwise skip straight to 1b.
+- **Phase 1b (§6, after the installer):** full config with SE meter + battery.
+
+⚠️ **Installer-visit agenda — hand this to the electrician:** (1) connect + commission the
+SE-MTR meter, (2) connect + commission the battery, (3) **enable Modbus TCP on the inverter
+(port 1502, via SetApp)**. Item 3 is easily forgotten and blocks everything evcc does —
+without it a second visit is needed.
 
 ## 1. Discovery checklist (do this first, ~1 evening)
 
-- [ ] **Hichi delivers signed live power? ← critical path for 1a.** Open the Tasmota web UI.
-      evcc's `tasmota-sml` template needs the sensor53 script to expose an `SML` group with
-      `Total_in` (import kWh, OBIS 1.8.0), `Total_out` (export kWh, 2.8.0) and `Power_curr`
-      (live power in W, 16.7.0, **negative when exporting**) — the exact script is in
-      `templates/definition/meter/tasmota-sml.yaml` in this repo. Check on a sunny moment:
-      does the power value go negative? Two common blockers:
-      - Script only maps `Total_in`/power → extend the script (copy from the template docs).
-      - The utility meter hides live power/export until unlocked with the **meter PIN** →
-        request the PIN from the metering operator (Messstellenbetreiber), enter it via
-        flashlight blinks or the meter's menu. This can take days — start early.
-- [ ] **Installer appointment for SE-MTR meter + battery.** Both need electrical connection
-      and commissioning via SetApp. While the installer is there anyway: have **Modbus TCP**
-      enabled on the inverter (see next item). Note the date here: ______
-- [ ] **Modbus TCP enabled on the inverter?** evcc reads PV production (1a) and later
-      grid/battery (1b) via Modbus TCP, port 1502. Enabling is done in SetApp (installer
-      access) or the inverter's local web interface on newer firmware. Needed already in 1a
-      for the PV reading — if it can't be enabled before the installer visit, 1a falls back
-      to tariff-only charging (no PV surplus) until then.
+- [x] **Hichi delivers signed live power?** ✅ Verified 2026-07-11: outputs negative power
+      on export. Qualifies as Phase 1a grid meter (evcc `tasmota-sml` template needs the
+      `SML` group with `Total_in`, `Total_out`, `Power_curr` — confirm those exact JSON tag
+      names in the Tasmota UI when configuring; script reference in
+      `templates/definition/meter/tasmota-sml.yaml`).
+- [x] **Installer appointment for SE-MTR meter + battery.** ✅ Scheduled within ~2 weeks of
+      2026-07-11. **Give the installer the 3-point agenda from the top of this doc** —
+      especially Modbus TCP.
+- [ ] **Modbus TCP enabled on the inverter?** Unknown whether it can be enabled without
+      installer access (newer firmware exposes it in the inverter's local web UI; otherwise
+      SetApp). Try locally once; if not accessible, it's covered by the installer agenda.
+      Without it there is no PV reading, so optional Phase 1a would be tariff-only.
 - [ ] **PPC LTE smart meter gateway:** assume *not* accessible (German SMGWs expose no local
       consumer API). The SolarEdge meter is evcc's grid meter; the Tasmota Hichi stays as an
       independent sanity check. No action needed.
