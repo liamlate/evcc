@@ -1,20 +1,34 @@
 # Phase 1 — Deploy & Configure evcc
 
 Milestone: **PV surplus charging works** — a plugged-in car charges automatically from excess
-solar, visible in the evcc UI from both phones via VPN.
+solar, visible in the evcc UI from both phones.
+
+**Status 2026-07-11:** the SolarEdge SE-MTR grid meter and the battery are installed but
+**not yet electrically connected/commissioned**. Phase 1 therefore runs in two stages:
+**1a** (now) uses the hichi as grid meter and the inverter as PV meter — full PV surplus
+charging, no battery coordination. **1b** (§6, after the installer) switches to the SE meter
+and adds the battery. The hichi's capabilities are the critical path for 1a.
 
 ## 1. Discovery checklist (do this first, ~1 evening)
 
-Several unknowns block configuration. Verify each and note the result here.
-
-- [ ] **SolarEdge meter commissioned?** Check the SolarEdge monitoring app/portal: does it show
-      grid import/export and self-consumption? If yes, the SE-MTR meter is active. If not, the
-      installer must commission it (SetApp).
-- [ ] **Battery visible?** Same portal: does the storage show charge/discharge and SoC?
-- [ ] **Modbus TCP enabled on the inverter?** evcc talks to SolarEdge via Modbus TCP,
-      port 1502. Enabling it is done in SetApp (installer access) or via the inverter's local
-      web interface on newer firmware. This is the single most likely blocker — schedule the
-      installer if needed.
+- [ ] **Hichi delivers signed live power? ← critical path for 1a.** Open the Tasmota web UI.
+      evcc's `tasmota-sml` template needs the sensor53 script to expose an `SML` group with
+      `Total_in` (import kWh, OBIS 1.8.0), `Total_out` (export kWh, 2.8.0) and `Power_curr`
+      (live power in W, 16.7.0, **negative when exporting**) — the exact script is in
+      `templates/definition/meter/tasmota-sml.yaml` in this repo. Check on a sunny moment:
+      does the power value go negative? Two common blockers:
+      - Script only maps `Total_in`/power → extend the script (copy from the template docs).
+      - The utility meter hides live power/export until unlocked with the **meter PIN** →
+        request the PIN from the metering operator (Messstellenbetreiber), enter it via
+        flashlight blinks or the meter's menu. This can take days — start early.
+- [ ] **Installer appointment for SE-MTR meter + battery.** Both need electrical connection
+      and commissioning via SetApp. While the installer is there anyway: have **Modbus TCP**
+      enabled on the inverter (see next item). Note the date here: ______
+- [ ] **Modbus TCP enabled on the inverter?** evcc reads PV production (1a) and later
+      grid/battery (1b) via Modbus TCP, port 1502. Enabling is done in SetApp (installer
+      access) or the inverter's local web interface on newer firmware. Needed already in 1a
+      for the PV reading — if it can't be enabled before the installer visit, 1a falls back
+      to tariff-only charging (no PV surplus) until then.
 - [ ] **PPC LTE smart meter gateway:** assume *not* accessible (German SMGWs expose no local
       consumer API). The SolarEdge meter is evcc's grid meter; the Tasmota Hichi stays as an
       independent sanity check. No action needed.
@@ -61,7 +75,7 @@ volumes:
 
 Update path: `docker compose pull && docker compose up -d` (evcc releases ~monthly).
 
-## 3. evcc.yaml skeleton
+## 3. evcc.yaml skeleton (Phase 1a — hichi as grid meter, no battery)
 
 Fill in IPs/credentials from discovery. Validate with
 `docker compose run --rm evcc -c /etc/evcc.yaml configure` errors or start and check the logs.
@@ -77,24 +91,32 @@ sponsortoken: # from sponsor.evcc.io
 interval: 30s
 
 meters:
-  - name: grid
+  - name: grid                 # Phase 1a: hichi on the utility meter
     type: template
-    template: solaredge-hybrid
+    template: tasmota-sml
     usage: grid
-    host: <inverter-ip>       # Modbus TCP, port 1502
-    port: 1502
+    host: <hichi-ip>
+    user: admin
+    password: <tasmota-password>
   - name: pv
     type: template
     template: solaredge-hybrid
     usage: pv
-    host: <inverter-ip>
+    host: <inverter-ip>        # Modbus TCP, port 1502
     port: 1502
-  - name: battery
-    type: template
-    template: solaredge-hybrid
-    usage: battery
-    host: <inverter-ip>
-    port: 1502
+  # Phase 1b (after installer) — replace the grid meter above with this and add battery:
+  # - name: grid
+  #   type: template
+  #   template: solaredge-hybrid
+  #   usage: grid
+  #   host: <inverter-ip>
+  #   port: 1502
+  # - name: battery
+  #   type: template
+  #   template: solaredge-hybrid
+  #   usage: battery
+  #   host: <inverter-ip>
+  #   port: 1502
 
 chargers:
   - name: wallbox
@@ -130,7 +152,7 @@ site:
   meters:
     grid: grid
     pv: [pv]
-    battery: [battery]
+    # battery: [battery]       # Phase 1b
   residualPower: 100           # keep small grid draw margin
 
 tariffs:
@@ -151,9 +173,15 @@ Notes:
 - **PHEV surplus threshold:** the BMW at 6 A single-phase needs only ~1.4 kW surplus to start;
   the ID.3 at 6 A three-phase needs ~4.1 kW. If the cFos supports automatic phase switching,
   `phases: 0` lets evcc pick; verify the specific Power Brain model during discovery.
-- **Battery vs car:** evcc's battery settings (UI → battery) control priority, e.g. "fill home
-  battery to X % before the car gets surplus" and lock the battery during fast charging so it
-  doesn't discharge into the car.
+- **Hichi as grid meter:** the utility meter's reading *includes* the wallbox and (later) the
+  battery — that's exactly what a grid meter should measure, so no correction needed. If the
+  hichi turns out to deliver only unsigned/consumption values (see discovery), PV surplus
+  mode won't regulate correctly — run tariff-only (mode Off/Fast + cheap-hour plans) until
+  1b rather than charging on bad data.
+- **Battery vs car (Phase 1b):** evcc's battery settings (UI → battery) control priority,
+  e.g. "fill home battery to X % before the car gets surplus" and lock the battery during
+  fast charging so it doesn't discharge into the car. Priority choice is an **open
+  decision** — start with evcc defaults, tune after a few weeks of real data.
 - **Smart charging on price:** with the dynamic tariff configured, the UI offers a price limit
   in Min+PV/PV mode and cost-optimized charging plans ("cheapest hours until departure").
 - **Vehicle auto-detection:** evcc polls both car APIs and assigns the plugged-in car
@@ -192,10 +220,11 @@ Trade-off, for the record: WireGuard keeps everything first-party; Remote Access
 dashboard through evcc's cloud (TLS, account-gated) — accepted for day-to-day convenience,
 same trust level as the SolarEdge/VW/BMW cloud apps already in use.
 
-## 5. Acceptance tests
+## 5. Acceptance tests (Phase 1a)
 
-- [ ] evcc UI shows live grid / PV / battery / charge power that matches the SolarEdge app.
-- [ ] Hichi reading ≈ evcc grid reading (sanity check, ±ripple).
+- [ ] evcc UI shows live grid power (hichi) and PV power (inverter); grid goes negative when
+      the sun exports.
+- [ ] PV reading matches the SolarEdge monitoring app.
 - [ ] Plug in a car on a sunny day in PV mode → charging starts/ramps with the sun.
 - [ ] Fast mode button → charging at full power immediately.
 - [ ] Charging plan "80 % by 07:00" → evcc schedules cheap/solar hours and hits the target.
@@ -204,3 +233,26 @@ same trust level as the SolarEdge/VW/BMW cloud apps already in use.
 - [ ] Partner's phone reaches the dashboard from mobile data via the evcc Remote Access URL
       (after the paid token is active).
 - [ ] Pi reboot → evcc comes back up on its own (`restart: unless-stopped`).
+
+## 6. Phase 1b — after the installer visit (SE meter + battery connected)
+
+Prerequisite: installer has connected and commissioned the SE-MTR meter and the battery
+(SetApp), and the SolarEdge monitoring app shows grid import/export and battery SoC.
+
+1. Swap the grid meter in `evcc.yaml`: comment out the `tasmota-sml` block, enable the
+   `solaredge-hybrid` `usage: grid` block (§3). Add the battery meter and uncomment
+   `battery: [battery]` under `site.meters`.
+2. Restart evcc, then cross-check for a day: evcc grid reading ≈ hichi reading ≈ SolarEdge
+   app. The hichi is retired to sanity-check duty after that (leave it running — free
+   validation).
+3. Battery coordination: verify evcc shows battery SoC/power; set battery priority in the
+   UI. **Open decision** — options: battery-first (max evening self-sufficiency), car-first,
+   or threshold ("battery to X %, then car"). Start with evcc defaults, revisit with a few
+   weeks of data.
+4. Re-run the §5 sun-ramp test plus: during Fast charging, battery must NOT discharge into
+   the car (evcc battery lock).
+
+Acceptance (1b):
+- [ ] Grid/PV/battery/charge power in evcc match the SolarEdge app.
+- [ ] Battery does not discharge into the car during fast charging.
+- [ ] Surplus split between battery and car follows the chosen priority.
