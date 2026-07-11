@@ -42,6 +42,11 @@ new credentials, `capacity: 58` (Born 58 kWh) — done.
 
 ## Explicitly rejected
 
+- Patching out the sponsor-token check: `util/sponsor/` is not MIT-licensed (all rights
+  reserved), so removing it violates the license — besides breaking the fork-stays-mirror
+  rule. Decision: pay the ~2 €/month GitHub sponsorship (checked 2026-07-11: cFos and all
+  OCPP charger templates require it; the 71 token-free templates are simple switches/EVSEs
+  that can't do current control for PV surplus).
 - Public HTTPS exposure of the UI (WireGuard chosen instead).
 - Forking/patching evcc's UI (fork maintenance cost; companion page pattern instead).
 - Reading the PPC smart meter gateway (no consumer API).
