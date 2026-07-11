@@ -31,8 +31,10 @@ Everything controllable from both phones, from anywhere, via VPN.
 2. **Fork stays a mirror.** No changes to evcc source unless a real gap appears. If one does,
    prefer a companion page against evcc's REST API, or an upstream contribution — never a
    long-lived UI fork.
-3. **Remote access via FritzBox WireGuard.** evcc stays LAN-only; both phones get VPN
-   profiles. No public exposure, no auth/TLS hardening project.
+3. **Remote access — split approach** (updated 2026-07-11). evcc stays LAN-only, no port
+   forwarding. Liam: FritzBox WireGuard (full LAN access for admin/maintenance). Partner:
+   evcc's built-in Remote Access (included in sponsorship) — zero-friction dashboard URL,
+   no VPN app. Sponsorship gets paid after the demo-token trial, so this is covered anyway.
 4. **Vehicle handling.** One wallbox, two cars, auto-detection via the cars' cloud APIs.
    Fallback logic: only two cars exist, so "not the detected one" = the other one.
 5. **Optimization target.** Solar surplus first; remaining need from cheapest Rabot hours;

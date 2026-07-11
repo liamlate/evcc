@@ -159,19 +159,38 @@ Notes:
 - **Vehicle auto-detection:** evcc polls both car APIs and assigns the plugged-in car
   automatically; with exactly two vehicles, misdetection is a one-tap manual fix in the UI.
 
-## 4. Remote access — FritzBox WireGuard
+## 4. Remote access — split approach
 
+Two paths with different jobs; neither opens a port on the FritzBox.
+
+### 4a. Liam (admin): FritzBox WireGuard
+
+Full LAN access — evcc UI, cFos web interface, SolarEdge inverter, FritzBox admin, SSH to
+the Pi. This is the maintenance path when something misbehaves while away.
 Requires FritzOS ≥ 7.50 and a MyFRITZ account (free, provides DynDNS).
 
 1. FritzBox UI → Internet → Permit Access → **VPN (WireGuard)** → Add connection →
    "Simplified setup" for a single device.
-2. One profile per phone (Liam + partner). Scan the generated QR code with the WireGuard app
-   (iOS/Android).
-3. In the WireGuard app, enable "on-demand" or just toggle the tunnel, then open
-   `http://<pi-ip>:7070` — bookmark it / add to home screen.
+2. Scan the generated QR code with the WireGuard app (iOS/Android).
+3. Toggle the tunnel (or use "on-demand"), then open `http://<pi-ip>:7070` — bookmark it.
 4. Optional: mDNS name `http://raspberrypi.local:7070` works on LAN; over VPN use the IP.
 
-No port forwarding, no public exposure, nothing else to harden.
+### 4b. Partner (daily use): evcc Remote Access
+
+Included in the sponsorship (requires a real token — enable after switching from the demo
+token to the paid one). Exposes *only* the evcc dashboard via evcc's cloud; the instance
+connects outbound, nothing listens on the home network.
+
+1. evcc UI → Settings → Remote Access → enable, follow the pairing flow.
+2. Put the resulting URL on the partner's phone home screen. No VPN app, no tunnel toggle.
+3. Record the URL in `RUNBOOK.de.md` (placeholder there until this step).
+
+Note: Remote Access is a newer evcc feature — check its current settings/docs state when
+enabling, and fall back to a second WireGuard profile if it doesn't fit.
+
+Trade-off, for the record: WireGuard keeps everything first-party; Remote Access routes the
+dashboard through evcc's cloud (TLS, account-gated) — accepted for day-to-day convenience,
+same trust level as the SolarEdge/VW/BMW cloud apps already in use.
 
 ## 5. Acceptance tests
 
@@ -181,5 +200,7 @@ No port forwarding, no public exposure, nothing else to harden.
 - [ ] Fast mode button → charging at full power immediately.
 - [ ] Charging plan "80 % by 07:00" → evcc schedules cheap/solar hours and hits the target.
 - [ ] Both cars are auto-identified when plugged in.
-- [ ] Both phones reach the UI from mobile data via WireGuard.
+- [ ] Liam's phone reaches the UI (and the Pi via SSH) from mobile data via WireGuard.
+- [ ] Partner's phone reaches the dashboard from mobile data via the evcc Remote Access URL
+      (after the paid token is active).
 - [ ] Pi reboot → evcc comes back up on its own (`restart: unless-stopped`).

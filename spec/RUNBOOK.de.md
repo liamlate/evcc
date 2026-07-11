@@ -4,8 +4,13 @@
 
 ## App öffnen
 
-1. **Zu Hause (WLAN):** Browser → `http://<pi-ip>:7070` (Lesezeichen auf dem Homescreen).
-2. **Unterwegs:** Erst WireGuard-App öffnen → Tunnel einschalten → dann dasselbe Lesezeichen.
+**Einfachster Weg (überall, auch unterwegs):** Lesezeichen „Laden" auf dem Homescreen
+öffnen — fertig. *(Adresse: evcc-Fernzugriff-URL, wird bei der Einrichtung eingetragen —
+TODO)*
+
+**Alternative für Liam (Admin):**
+1. Zu Hause (WLAN): Browser → `http://<pi-ip>:7070`.
+2. Unterwegs: erst WireGuard-App öffnen → Tunnel einschalten → dann dieselbe Adresse.
 
 ## Auto laden
 
@@ -28,7 +33,8 @@ Dann einen Modus wählen (Knöpfe unten):
 
 ## Wenn etwas nicht geht
 
-- **App lädt nicht (unterwegs):** WireGuard-Tunnel an? Sonst an/aus schalten.
+- **App lädt nicht (unterwegs):** Kurz warten und neu laden; sonst Liam fragen. (Bei der
+  WireGuard-Variante: Tunnel an? Sonst an/aus schalten.)
 - **Falsches Auto angezeigt:** In der App auf den Autonamen tippen und das richtige wählen.
 - **Lädt nicht im Solar-Modus:** Zu wenig Sonne ist normal — Modus **Schnell** wählen, wenn
   es eilig ist.
